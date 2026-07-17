@@ -1,0 +1,27 @@
+# A signup-form validation demo. Run it directly:
+#
+#   ecko example.ecko
+
+import "./main.ecko"
+v = main
+
+schema = {
+    name: [v.required(), v.string(), v.min_len(2)],
+    email: [v.required(), v.email()],
+    age: [v.int(), v.min(18)],
+    role: [v.one_of(["admin", "member", "guest"])],
+    tags: [v.each(v.string())],
+}
+
+good = { name: "Ada", email: "ada@example.com", age: 36, role: "admin", tags: ["x", "y"] }
+bad = { name: "A", email: "nope", age: 15, role: "root", tags: ["ok", 2] }
+
+print("good is_valid: {v.is_valid(good, schema)}")
+
+print("bad errors:")
+errs = v.check(bad, schema)
+for field in sort(keys(errs)) {
+    for m in errs[field] {
+        print("  {field}: {m}")
+    }
+}

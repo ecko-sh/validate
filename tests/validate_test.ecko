@@ -1,0 +1,97 @@
+# Tests for the validate package - offline, deterministic (no ai/fs/net).
+import std.test
+import "../main.ecko"
+v = main
+
+test.case("valid data yields no errors", || {
+    schema = { name: [v.required(), v.string()], age: [v.int(), v.min(18)] }
+    test.eq(v.check({ name: "Ada", age: 30 }, schema), {})
+    test.ok(v.is_valid({ name: "Ada", age: 30 }, schema), "is_valid is true")
+})
+
+test.case("required reports a missing field once, with no cascade", || {
+    schema = { age: [v.required(), v.int(), v.min(18)] }
+    test.eq(v.check({}, schema), { age: ["is required"] })
+})
+
+test.case("type validators fail the wrong type, pass null and the right type", || {
+    test.eq(v.check_value(5, [v.string()]), ["must be text"])
+    test.eq(v.check_value("hi", [v.string()]), [])
+    test.eq(v.check_value(null, [v.string()]), [])
+    test.eq(v.check_value("x", [v.int()]), ["must be a whole number"])
+    test.eq(v.check_value(3, [v.int()]), [])
+    test.eq(v.check_value(3.5, [v.float()]), [])
+    test.eq(v.check_value(true, [v.bool()]), [])
+    test.eq(v.check_value([1], [v.list()]), [])
+    test.eq(v.check_value({ a: 1 }, [v.map()]), [])
+    test.eq(v.check_value(3, [v.number()]), [])
+    test.eq(v.check_value(3.5, [v.number()]), [])
+    test.eq(v.check_value("x", [v.number()]), ["must be a number"])
+})
+
+test.case("number bounds; pass non-numbers", || {
+    test.eq(v.check_value(5, [v.min(10)]), ["must be at least 10"])
+    test.eq(v.check_value(10, [v.min(10)]), [])
+    test.eq(v.check_value(20, [v.max(10)]), ["must be at most 10"])
+    test.eq(v.check_value(5, [v.between(1, 10)]), [])
+    test.eq(v.check_value(11, [v.between(1, 10)]), ["must be between 1 and 10"])
+    test.eq(v.check_value(-1, [v.positive()]), ["must be positive"])
+    test.eq(v.check_value(1, [v.positive()]), [])
+    test.eq(v.check_value(1, [v.negative()]), ["must be negative"])
+    test.eq(v.check_value("x", [v.min(10)]), [])
+})
+
+test.case("string rules", || {
+    test.eq(v.check_value("a", [v.min_len(2)]), ["must be at least 2 characters"])
+    test.eq(v.check_value("abc", [v.min_len(2)]), [])
+    test.eq(v.check_value("abcd", [v.max_len(3)]), ["must be at most 3 characters"])
+    test.eq(v.check_value("user@example.com", [v.email()]), [])
+    test.eq(v.check_value("nope", [v.email()]), ["must be a valid email"])
+    test.eq(v.check_value("https://ecko.sh", [v.url()]), [])
+    test.eq(v.check_value("ecko", [v.url()]), ["must be a valid URL"])
+    test.eq(v.check_value("abc", [v.pattern("^[a-z]+$")]), [])
+    test.eq(v.check_value("ABC", [v.pattern("^[a-z]+$", "lowercase only")]), ["lowercase only"])
+    test.eq(v.check_value("b", [v.one_of(["a", "c"])]), ["must be one of: a, c"])
+    test.eq(v.check_value("a", [v.one_of(["a", "c"])]), [])
+})
+
+test.case("non_empty for strings and lists", || {
+    test.eq(v.check_value("", [v.non_empty()]), ["must not be empty"])
+    test.eq(v.check_value([], [v.non_empty()]), ["must not be empty"])
+    test.eq(v.check_value("x", [v.non_empty()]), [])
+    test.eq(v.check_value([1], [v.non_empty()]), [])
+    test.eq(v.check_value(null, [v.non_empty()]), [])
+})
+
+test.case("each applies a validator across a list", || {
+    test.eq(v.check_value([1, 2, 3], [v.each(v.int())]), [])
+    test.eq(v.check_value([1, "x", 3], [v.each(v.int())]), ["item 2: must be a whole number"])
+    test.eq(v.check_value("nope", [v.each(v.int())]), ["must be a list"])
+})
+
+test.case("shape validates a nested map", || {
+    addr = v.shape({ city: [v.required()], zip: [v.required()] })
+    test.eq(v.check_value({ city: "Cairo", zip: "11511" }, [addr]), [])
+    test.eq(v.check_value({ city: "Cairo" }, [addr]), ["zip: is required"])
+})
+
+test.case("validate returns data when valid, raises a validation error otherwise", || {
+    schema = { name: [v.required()] }
+    test.eq(v.validate({ name: "Ada" }, schema), { name: "Ada" })
+    caught = try { v.validate({}, schema) } catch (e) { get(e, "kind") }
+    test.eq(caught, "validation")
+})
+
+test.case("a custom lambda works as a rule", || {
+    even = |x| if x == null { null } else if x % 2 == 0 { null } else { "must be even" }
+    test.eq(v.check_value(3, [even]), ["must be even"])
+    test.eq(v.check_value(4, [even]), [])
+})
+
+test.case("collects all failures across fields", || {
+    schema = { name: [v.required(), v.string()], age: [v.required(), v.int()] }
+    test.eq(
+        v.check({ age: "old" }, schema),
+        { name: ["is required"], age: ["must be a whole number"] },
+    )
+})

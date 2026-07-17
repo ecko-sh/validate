@@ -1,0 +1,19 @@
+# validate - a data/input validation library written in Ecko.
+#
+# A validator is a function `|value| -> null (pass) | message (fail)`. A schema
+# maps each field to a list of them; `check` runs them all and collects every
+# failure. Pure computation - no capabilities.
+#
+#   import validate
+#   v = validate                     # `import ... as` is not supported yet
+#
+#   schema = {
+#     name:  [v.required(), v.string(), v.min_len(2)],
+#     email: [v.required(), v.email()],
+#     age:   [v.int(), v.min(18)],
+#   }
+#   errors = v.check(data, schema)   # {} = valid, else { field: [messages] }
+#
+# This entrypoint curates the public surface (the runner + the validators).
+export * from "./check.ecko"
+export * from "./validators.ecko"

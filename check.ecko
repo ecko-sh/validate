@@ -1,0 +1,41 @@
+# check - the validation runner.
+#
+# A schema maps each field to a list of validators; a validator is a function
+# `|value| -> null (pass) | message (fail)`. `check` runs them all and collects
+# every failure. This file is independent of validators.ecko - it only runs the
+# functions a schema holds.
+
+# check(data, schema) -> { field: [messages] }. An empty map means valid.
+export fn check(data, schema) {
+    mut errors = empty_map()
+    for field in keys(schema) {
+        value = get(data, field)
+        msgs = check_value(value, schema[field])
+        if len(msgs) > 0 { errors = insert(errors, field, msgs) }
+    }
+    errors
+}
+
+# check_value(value, rules) -> [messages]. One value against a list of validators.
+export fn check_value(value, rules) {
+    mut msgs = []
+    for rule in rules {
+        m = rule(value)
+        if m != null { msgs = push(msgs, m) }
+    }
+    msgs
+}
+
+# is_valid(data, schema) -> Bool.
+export fn is_valid(data, schema) = len(keys(check(data, schema))) == 0
+
+# validate(data, schema) -> data if valid, otherwise raises an Ecko error of
+# kind "validation" carrying the error map (catch it with try/catch).
+export fn validate(data, schema) {
+    errors = check(data, schema)
+    if len(keys(errors)) == 0 {
+        data
+    } else {
+        error({ kind: "validation", message: "validation failed", errors: errors })
+    }
+}

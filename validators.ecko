@@ -1,0 +1,87 @@
+# validators - the built-in validator constructors.
+#
+# Each returns a validator function `|value| -> null (pass) | message (fail)`.
+# The invariant that keeps collect-all clean and crash-free: every validator
+# checks exactly ONE concern and passes (null) on a null or wrong-typed value -
+# so only its dedicated type/presence rule reports that error, and no validator
+# ever runs `len`/`<` on the wrong type. Fields are optional by default;
+# `required()` is the only rule that fails on null.
+#
+# NB: this module exports names like `string`/`int`/`list`/`map`/`min`/`max`
+# that shadow builtins. It never CALLS those builtins internally (type checks go
+# through `type_of`), so no `core.*` escape hatch is needed here.
+
+import std.re
+import "./check.ecko"
+
+fn is_number(x) = type_of(x) == "int" or type_of(x) == "float"
+fn is_string(x) = type_of(x) == "string"
+
+# ---- presence --------------------------------------------------------------
+export fn required() = |value| if value == null { "is required" } else { null }
+# A readability marker; fields are optional by default.
+export fn optional() = |value| null
+
+# ---- types (pass null; fail the wrong type) --------------------------------
+export fn string() = |value| if value == null or is_string(value) { null } else { "must be text" }
+export fn int() = |value| if value == null or type_of(value) == "int" { null } else { "must be a whole number" }
+export fn float() = |value| if value == null or type_of(value) == "float" { null } else { "must be a decimal number" }
+export fn number() = |value| if value == null or is_number(value) { null } else { "must be a number" }
+export fn bool() = |value| if value == null or type_of(value) == "bool" { null } else { "must be true or false" }
+export fn list() = |value| if value == null or type_of(value) == "list" { null } else { "must be a list" }
+export fn map() = |value| if value == null or type_of(value) == "map" { null } else { "must be a map" }
+
+# ---- numbers (pass null and non-numbers) -----------------------------------
+export fn min(n) = |value| if value == null or not is_number(value) { null } else if value < n { "must be at least {n}" } else { null }
+export fn max(n) = |value| if value == null or not is_number(value) { null } else if value > n { "must be at most {n}" } else { null }
+export fn between(lo, hi) = |value| if value == null or not is_number(value) { null } else if value < lo or value > hi { "must be between {lo} and {hi}" } else { null }
+export fn positive() = |value| if value == null or not is_number(value) { null } else if value > 0 { null } else { "must be positive" }
+export fn negative() = |value| if value == null or not is_number(value) { null } else if value < 0 { null } else { "must be negative" }
+
+# ---- strings (pass null and non-strings) -----------------------------------
+export fn min_len(n) = |value| if value == null or not is_string(value) { null } else if len(value) < n { "must be at least {n} characters" } else { null }
+export fn max_len(n) = |value| if value == null or not is_string(value) { null } else if len(value) > n { "must be at most {n} characters" } else { null }
+export fn len_between(lo, hi) = |value| if value == null or not is_string(value) { null } else if len(value) < lo or len(value) > hi { "must be between {lo} and {hi} characters" } else { null }
+export fn pattern(re_pat, msg = null) = |value| if value == null or not is_string(value) { null } else if re.test(re_pat, value) { null } else if msg == null { "has an invalid format" } else { msg }
+export fn email() = pattern("^[^@ ]+@[^@ ]+\\.[^@ ]+$", "must be a valid email")
+export fn url() = pattern("^https?://[^ ]+$", "must be a valid URL")
+
+# ---- membership (any type; passes null) ------------------------------------
+export fn one_of(options) = |value| if value == null { null } else if contains(options, value) { null } else { "must be one of: {join(options, \", \")}" }
+
+# ---- collections -----------------------------------------------------------
+export fn non_empty() = |value| if value == null { null } else if not (is_string(value) or type_of(value) == "list") { null } else if len(value) == 0 { "must not be empty" } else { null }
+
+# each(validator) - value must be a list; apply validator to every element.
+export fn each(validator) = |value| {
+    if value == null { null } else if type_of(value) != "list" { "must be a list" } else {
+        mut msgs = []
+        mut i = 0
+        for item in value {
+            m = validator(item)
+            if m != null { msgs = push(msgs, "item {i + 1}: {m}") }
+            i = i + 1
+        }
+        if len(msgs) == 0 { null } else { join(msgs, "; ") }
+    }
+}
+
+# shape(schema) - value must be a map; validate it against a nested schema.
+# Sub-errors are summarized into one message (v1); deeper trees are a future
+# enhancement.
+export fn shape(schema) = |value| {
+    if value == null { null } else if type_of(value) != "map" { "must be a map" } else {
+        errs = check.check(value, schema)
+        if len(keys(errs)) == 0 { null } else { summarize(errs) }
+    }
+}
+
+fn summarize(errs) {
+    mut parts = []
+    for field in keys(errs) {
+        for m in errs[field] {
+            parts = push(parts, "{field}: {m}")
+        }
+    }
+    join(parts, "; ")
+}
