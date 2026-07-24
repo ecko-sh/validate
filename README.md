@@ -1,21 +1,21 @@
-# validate
+# Validate - Ecko Std Lib Package
 
 A data/input validation library for [Ecko](https://ecko.sh), written in Ecko.
 Validate a form submission, an API body, or a config map against a schema of
 composable rules, and get back every error at once.
 
 Built on Ecko's first-class functions: **a validator is just a function**
-`|value| -> null (pass) | message (fail)`. No native code, no capabilities —
-pure computation over `std.re` and the builtins.
+`|value| -> null (pass) | message (fail)`, implemented with `std.re` and the
+builtins.
 
 ## Install
 
 ```bash
-ecko add https://github.com/ecko-sh/validate
+ecko get github.com/ecko-sh/validate
 ```
 
-`ecko add` vendors the package into `./vendor/validate/` and pins it by SHA-256
-in `ecko.lock`. It needs no capabilities.
+`ecko get` vendors the package under `./vendor/github.com/ecko-sh/validate/`
+and pins a file-tree hash in `ecko.sum`.
 
 ## Usage
 
@@ -56,11 +56,11 @@ v.check(
 ## How it works
 
 Each validator checks **exactly one** concern and passes (`null`) on a `null` or
-wrong-typed value — so `[v.required(), v.int(), v.min(18)]` on a missing field
+wrong-typed value - so `[v.required(), v.int(), v.min(18)]` on a missing field
 yields exactly `["is required"]` (no cascade), on `"abc"` yields
 `["must be a whole number"]`, and never crashes by running `<` on a string.
 **Fields are optional by default**; `required()` is the only rule that fails on
-`null`. There is **no coercion** — validation checks, it never transforms.
+`null`. There is **no coercion** - validation checks, it never transforms.
 
 A custom rule is just a function:
 
@@ -85,7 +85,7 @@ schema = { n: [v.int(), even] }
 
 | Function | Description |
 |---|---|
-| `check(data, schema)` | `{ field: [messages] }` — empty means valid |
+| `check(data, schema)` | `{ field: [messages] }` - empty means valid |
 | `is_valid(data, schema)` | `Bool` |
 | `validate(data, schema)` | Returns `data`, or raises a kind-`"validation"` error carrying the error map |
 | `check_value(value, rules)` | Run a rule list against a single value → `[messages]` |
@@ -100,4 +100,4 @@ Offline and deterministic. `example.ecko` is a runnable signup-form demo.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT - see [LICENSE](LICENSE).
