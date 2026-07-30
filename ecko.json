@@ -1,6 +1,6 @@
 {
-  "module": "github.com/ecko-sh/validate",
-  "version": "0.9.4",
+  "module": "github.com/ecko-lang/validate",
+  "version": "0.9.5",
   "entrypoint": "main.ecko",
   "description": "A data/input validation library written in Ecko: composable validator functions, whole-object schemas, collect-all errors. Pure - no capabilities.",
   "author": "Sean Nieuwoudt <sean@underwulf.com>",

@@ -11,10 +11,10 @@ builtins.
 ## Install
 
 ```bash
-ecko get github.com/ecko-sh/validate
+ecko get github.com/ecko-lang/validate
 ```
 
-`ecko get` vendors the package under `./vendor/github.com/ecko-sh/validate/`
+`ecko get` vendors the package under `./vendor/github.com/ecko-lang/validate/`
 and pins a file-tree hash in `ecko.sum`.
 
 ## Usage
