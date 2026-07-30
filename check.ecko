@@ -5,7 +5,14 @@
 # every failure. This file is independent of validators.ecko - it only runs the
 # functions a schema holds.
 
-# check(data, schema) -> { field: [messages] }. An empty map means valid.
+## check(data, schema) -> { field: [messages] }, empty when the data is valid.
+##
+## Every rule of every field runs, so one call reports all the problems rather
+## than the first one. A field absent from `data` is validated as null, which
+## only `required()` objects to.
+##
+## example:
+##   errors = validate.check(form, { email: [v.required(), v.email()] })
 export fn check(data, schema) {
     mut errors = empty_map()
     for field in keys(schema) {
@@ -16,7 +23,10 @@ export fn check(data, schema) {
     errors
 }
 
-# check_value(value, rules) -> [messages]. One value against a list of validators.
+## check_value(value, rules) -> [messages] for one value against one rule list.
+##
+## The building block `check` uses per field. Useful on its own for a value that
+## is not part of a map.
 export fn check_value(value, rules) {
     mut msgs = []
     for rule in rules {
@@ -26,11 +36,19 @@ export fn check_value(value, rules) {
     msgs
 }
 
-# is_valid(data, schema) -> Bool.
+## is_valid(data, schema) -> whether `data` passes every rule.
+##
+## The same work as `check`, when the messages are not wanted.
 export fn is_valid(data, schema) = len(keys(check(data, schema))) == 0
 
-# validate(data, schema) -> data if valid, otherwise raises an Ecko error of
-# kind "validation" carrying the error map (catch it with try/catch).
+## validate(data, schema) -> `data` when valid, otherwise raises.
+##
+## The raised error has kind `"validation"` and carries the same map `check`
+## returns under `errors`, so a handler can render per-field messages.
+##
+## example:
+##   try { user = validate.validate(body, schema) }
+##   catch e { respond(422, e.errors) }
 export fn validate(data, schema) {
     errors = check(data, schema)
     if len(keys(errors)) == 0 {
